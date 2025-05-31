@@ -1,0 +1,11 @@
+C:\Users\merve\OneDrive\Desktop\Stellar_App\contract\target\debug\deps\libwasmi_core-c68a8329f6aa771c.rmeta: C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\lib.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\host_error.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\nan_preserving_float.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\trap.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\units.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\untyped.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\value.rs
+
+C:\Users\merve\OneDrive\Desktop\Stellar_App\contract\target\debug\deps\wasmi_core-c68a8329f6aa771c.d: C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\lib.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\host_error.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\nan_preserving_float.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\trap.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\units.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\untyped.rs C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\value.rs
+
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\lib.rs:
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\host_error.rs:
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\nan_preserving_float.rs:
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\trap.rs:
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\units.rs:
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\untyped.rs:
+C:\Users\merve\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasmi_core-0.13.0\src\value.rs:
