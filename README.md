@@ -1,5 +1,7 @@
 # Digital Content Access Keys DApp
 
+![app2](https://github.com/user-attachments/assets/d68a412f-4a77-4888-b5cb-4b38ae7e7fb8)
+
 A decentralized application built on Stellar's Soroban platform for managing digital content access through blockchain-based keys.
 
 ## 🌟 Features
