@@ -1,411 +1,363 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec, Map, symbol_short};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short,
+    Address, Env, Symbol, Vec, Map, String, BytesN,
+};
 
-// Event definitions
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AccessKey {
+    pub id: u64,
+    pub owner: Address,
+    pub content_id: String,
+    pub expires_at: u64,
+    pub is_active: bool,
+    pub transferable: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContentMetadata {
+    pub title: String,
+    pub description: String,
+    pub creator: Address,
+    pub price: i128,
+    pub max_keys: u32,
+}
+
+#[contracttype]
+pub enum DataKey {
+    AccessKey(u64),
+    UserKeys(Address),
+    ContentMeta(String),
+    KeyCounter,
+    FrozenAccount(Address),
+    Balance(Address),
+}
+
+// Events
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KeyMintedEvent {
-    pub key_id: String,
+    pub key_id: u64,
     pub owner: Address,
-    pub content_name: String,
-    pub price: i128,
-    pub duration_days: u64,
+    pub content_id: String,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KeyTransferredEvent {
-    pub key_id: String,
+    pub key_id: u64,
     pub from: Address,
     pub to: Address,
-    pub price: i128,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AccountFrozenEvent {
-    pub key_id: String,
-    pub owner: Address,
+    pub account: Address,
+    pub frozen: bool,
 }
 
-// Data structures
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct AccessKey {
-    pub id: String,
-    pub owner: Address,
-    pub content_name: String,
-    pub price: i128,
-    pub duration_days: u64,
-    pub created_at: u64,
-    pub expires_at: u64,
-    pub is_active: bool,
-    pub is_frozen: bool,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UserBalance {
-    pub address: Address,
-    pub active_keys: Vec<String>,
-    pub expired_keys: Vec<String>,
-    pub frozen_keys: Vec<String>,
-}
-
-// Storage keys
-#[contracttype]
-pub enum DataKey {
-    AccessKey(String),
-    UserBalance(Address),
-    KeyCounter,
-    Admin,
-}
+const KEY_COUNTER: Symbol = symbol_short!("KEYCNT");
 
 #[contract]
-pub struct DigitalContentAccessKeysContract;
+pub struct DigitalAccessKeysContract;
 
 #[contractimpl]
-impl DigitalContentAccessKeysContract {
+impl DigitalAccessKeysContract {
+    
     /// Initialize the contract
     pub fn initialize(env: Env, admin: Address) {
-        // Ensure admin is authorized
-        admin.require_auth();
-        
-        // Set admin
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        
-        // Initialize key counter
-        env.storage().instance().set(&DataKey::KeyCounter, &0u64);
+        env.storage().instance().set(&symbol_short!("ADMIN"), &admin);
+        env.storage().instance().set(&KEY_COUNTER, &0u64);
     }
 
-    /// Mint a new access key
-    pub fn mint_key(
-        env: Env, 
-        owner: Address, 
-        content_name: String, 
-        price: i128, 
-        duration_days: u64
-    ) -> String {
-        // Owner must authorize the transaction
-        owner.require_auth();
+    /// Mint a new access key for digital content
+    pub fn mint(
+        env: Env,
+        to: Address,
+        content_id: String,
+        expires_at: u64,
+        transferable: bool,
+    ) -> u64 {
+        // Require authentication
+        to.require_auth();
         
-        // Validate inputs
-        if price < 0 {
-            panic!("Price cannot be negative");
-        }
-        if duration_days == 0 {
-            panic!("Duration must be greater than 0");
-        }
+        // Check if account is frozen
+        Self::require_not_frozen(&env, &to);
         
-        // Generate unique key ID
-        let counter: u64 = env.storage().instance()
-            .get(&DataKey::KeyCounter)
-            .unwrap_or(0);
+        // Get next key ID
+        let key_id = Self::get_next_key_id(&env);
         
-        let key_id = format!("key_{}", counter);
-        
-        // Get current timestamp
-        let current_time = env.ledger().timestamp();
-        let expires_at = current_time + (duration_days * 24 * 60 * 60);
-        
-        // Create access key
+        // Create the access key
         let access_key = AccessKey {
-            id: key_id.clone(),
-            owner: owner.clone(),
-            content_name: content_name.clone(),
-            price,
-            duration_days,
-            created_at: current_time,
+            id: key_id,
+            owner: to.clone(),
+            content_id: content_id.clone(),
             expires_at,
             is_active: true,
-            is_frozen: false,
+            transferable,
         };
         
         // Store the access key
-        env.storage().persistent()
-            .set(&DataKey::AccessKey(key_id.clone()), &access_key);
+        env.storage().persistent().set(&DataKey::AccessKey(key_id), &access_key);
         
-        // Update user balance
-        Self::add_key_to_user_balance(&env, &owner, &key_id, true);
+        // Update user's key list
+        Self::add_key_to_user(&env, &to, key_id);
         
-        // Update counter
-        env.storage().instance()
-            .set(&DataKey::KeyCounter, &(counter + 1));
+        // Update balance
+        Self::increment_balance(&env, &to);
         
         // Emit event
-        env.events().publish((
-            symbol_short!("key_mint"),
+        env.events().publish(
+            (symbol_short!("mint"), &to),
             KeyMintedEvent {
-                key_id: key_id.clone(),
-                owner,
-                content_name,
-                price,
-                duration_days,
+                key_id,
+                owner: to.clone(),
+                content_id,
             }
-        ));
+        );
         
         key_id
     }
 
     /// Transfer an access key to another address
-    pub fn transfer_key(
-        env: Env, 
-        key_id: String, 
-        from: Address, 
-        to: Address, 
-        price: i128
-    ) -> bool {
-        // From address must authorize
-        from.require_auth();
-        
+    pub fn transfer(env: Env, key_id: u64, to: Address) {
         // Get the access key
-        let mut access_key: AccessKey = env.storage().persistent()
-            .get(&DataKey::AccessKey(key_id.clone()))
-            .expect("Access key not found");
+        let mut key: AccessKey = env.storage()
+            .persistent()
+            .get(&DataKey::AccessKey(key_id))
+            .unwrap_or_else(|| panic!("Access key not found"));
         
-        // Validate ownership
-        if access_key.owner != from {
-            panic!("Not the owner of this key");
+        // Require owner authentication
+        key.owner.require_auth();
+        
+        // Check if key is transferable
+        if !key.transferable {
+            panic!("This access key is not transferable");
         }
         
-        // Check if key is active and not frozen
-        if !access_key.is_active || access_key.is_frozen {
-            panic!("Key is not transferable");
+        // Check if key is active and not expired
+        if !key.is_active {
+            panic!("Access key is not active");
         }
         
-        // Check expiration
         let current_time = env.ledger().timestamp();
-        if current_time >= access_key.expires_at {
-            panic!("Key has expired");
+        if current_time > key.expires_at {
+            panic!("Access key has expired");
         }
         
-        // Update ownership
-        access_key.owner = to.clone();
+        // Check if both accounts are not frozen
+        Self::require_not_frozen(&env, &key.owner);
+        Self::require_not_frozen(&env, &to);
         
-        // Store updated key
-        env.storage().persistent()
-            .set(&DataKey::AccessKey(key_id.clone()), &access_key);
+        let from = key.owner.clone();
         
-        // Update user balances
-        Self::remove_key_from_user_balance(&env, &from, &key_id);
-        Self::add_key_to_user_balance(&env, &to, &key_id, true);
+        // Remove key from previous owner
+        Self::remove_key_from_user(&env, &from, key_id);
+        Self::decrement_balance(&env, &from);
+        
+        // Add key to new owner
+        Self::add_key_to_user(&env, &to, key_id);
+        Self::increment_balance(&env, &to);
+        
+        // Update key owner
+        key.owner = to.clone();
+        env.storage().persistent().set(&DataKey::AccessKey(key_id), &key);
         
         // Emit event
-        env.events().publish((
-            symbol_short!("key_xfer"),
+        env.events().publish(
+            (symbol_short!("transfer"), &from, &to),
             KeyTransferredEvent {
                 key_id,
-                from,
-                to,
-                price,
+                from: from.clone(),
+                to: to.clone(),
             }
-        ));
-        
-        true
+        );
     }
 
-    /// Get user's access key balance and status
-    pub fn get_balance(env: Env, user: Address) -> UserBalance {
-        env.storage().persistent()
-            .get(&DataKey::UserBalance(user.clone()))
-            .unwrap_or(UserBalance {
-                address: user,
-                active_keys: Vec::new(&env),
-                expired_keys: Vec::new(&env),
-                frozen_keys: Vec::new(&env),
-            })
+    /// Get the balance of access keys for an address
+    pub fn balance(env: Env, address: Address) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Balance(address))
+            .unwrap_or(0)
     }
 
-    /// Check if user has valid access to content
-    pub fn verify_access(env: Env, user: Address, key_id: String) -> bool {
-        let access_key: AccessKey = match env.storage().persistent()
-            .get(&DataKey::AccessKey(key_id)) {
-            Some(key) => key,
-            None => return false,
-        };
+    /// Freeze or unfreeze an account
+    pub fn freeze_account(env: Env, account: Address, freeze: bool) {
+        let admin: Address = env.storage()
+            .instance()
+            .get(&symbol_short!("ADMIN"))
+            .unwrap_or_else(|| panic!("Admin not set"));
         
-        // Check ownership
-        if access_key.owner != user {
-            return false;
+        admin.require_auth();
+        
+        if freeze {
+            env.storage().persistent().set(&DataKey::FrozenAccount(account.clone()), &true);
+        } else {
+            env.storage().persistent().remove(&DataKey::FrozenAccount(account.clone()));
         }
-        
-        // Check if active and not frozen
-        if !access_key.is_active || access_key.is_frozen {
-            return false;
-        }
-        
-        // Check expiration
-        let current_time = env.ledger().timestamp();
-        access_key.expires_at > current_time
-    }
-
-    /// Freeze an account (admin or owner can freeze)
-    pub fn freeze_account(env: Env, caller: Address, key_id: String) -> bool {
-        caller.require_auth();
-        
-        // Get the access key
-        let mut access_key: AccessKey = env.storage().persistent()
-            .get(&DataKey::AccessKey(key_id.clone()))
-            .expect("Access key not found");
-        
-        // Check if caller is admin or owner
-        let admin: Address = env.storage().instance()
-            .get(&DataKey::Admin)
-            .expect("Admin not set");
-        
-        if caller != admin && caller != access_key.owner {
-            panic!("Not authorized to freeze this key");
-        }
-        
-        // Freeze the key
-        access_key.is_frozen = true;
-        access_key.is_active = false;
-        
-        // Store updated key
-        env.storage().persistent()
-            .set(&DataKey::AccessKey(key_id.clone()), &access_key);
-        
-        // Update user balance
-        Self::move_key_to_frozen(&env, &access_key.owner, &key_id);
         
         // Emit event
-        env.events().publish((
-            symbol_short!("acc_frzn"),
+        env.events().publish(
+            (symbol_short!("freeze"), &account),
             AccountFrozenEvent {
-                key_id,
-                owner: access_key.owner,
+                account: account.clone(),
+                frozen: freeze,
             }
-        ));
-        
-        true
+        );
+    }
+
+    /// Check if an account is frozen
+    pub fn is_frozen(env: Env, account: Address) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::FrozenAccount(account))
+            .unwrap_or(false)
     }
 
     /// Get access key details
-    pub fn get_key_details(env: Env, key_id: String) -> Option<AccessKey> {
-        env.storage().persistent()
+    pub fn get_key(env: Env, key_id: u64) -> Option<AccessKey> {
+        env.storage()
+            .persistent()
             .get(&DataKey::AccessKey(key_id))
     }
 
-    /// Get all access keys for a user
-    pub fn get_user_keys(env: Env, user: Address) -> Vec<AccessKey> {
-        let balance = Self::get_balance(env.clone(), user);
-        let mut keys = Vec::new(&env);
-        
-        // Collect active keys
-        for key_id in balance.active_keys.iter() {
-            if let Some(key) = Self::get_key_details(env.clone(), key_id) {
-                keys.push_back(key);
-            }
-        }
-        
-        // Collect expired keys
-        for key_id in balance.expired_keys.iter() {
-            if let Some(key) = Self::get_key_details(env.clone(), key_id) {
-                keys.push_back(key);
-            }
-        }
-        
-        // Collect frozen keys
-        for key_id in balance.frozen_keys.iter() {
-            if let Some(key) = Self::get_key_details(env.clone(), key_id) {
-                keys.push_back(key);
-            }
-        }
-        
-        keys
+    /// Get all keys owned by an address
+    pub fn get_user_keys(env: Env, user: Address) -> Vec<u64> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::UserKeys(user))
+            .unwrap_or(Vec::new(&env))
     }
 
-    /// Update expired keys (can be called by anyone)
-    pub fn update_expired_keys(env: Env, user: Address) -> bool {
-        let mut balance = Self::get_balance(env.clone(), user.clone());
-        let current_time = env.ledger().timestamp();
-        let mut updated = false;
-        
-        // Check active keys for expiration
-        let mut new_active_keys = Vec::new(&env);
-        
-        for key_id in balance.active_keys.iter() {
-            if let Some(key) = Self::get_key_details(env.clone(), key_id.clone()) {
-                if current_time >= key.expires_at {
-                    // Move to expired
-                    balance.expired_keys.push_back(key_id.clone());
-                    
-                    // Update key status
-                    let mut expired_key = key;
-                    expired_key.is_active = false;
-                    env.storage().persistent()
-                        .set(&DataKey::AccessKey(key_id), &expired_key);
-                    
-                    updated = true;
-                } else {
-                    new_active_keys.push_back(key_id);
-                }
-            }
-        }
-        
-        if updated {
-            balance.active_keys = new_active_keys;
-            env.storage().persistent()
-                .set(&DataKey::UserBalance(user), &balance);
-        }
-        
-        updated
-    }
-
-    // Helper functions
-    fn add_key_to_user_balance(env: &Env, user: &Address, key_id: &String, is_active: bool) {
-        let mut balance = Self::get_balance(env.clone(), user.clone());
-        
-        if is_active {
-            balance.active_keys.push_back(key_id.clone());
+    /// Check if a key is valid and active
+    pub fn is_key_valid(env: Env, key_id: u64) -> bool {
+        if let Some(key) = Self::get_key(env.clone(), key_id) {
+            let current_time = env.ledger().timestamp();
+            key.is_active && current_time <= key.expires_at
         } else {
-            balance.expired_keys.push_back(key_id.clone());
+            false
         }
-        
-        env.storage().persistent()
-            .set(&DataKey::UserBalance(user.clone()), &balance);
     }
-    
-    fn remove_key_from_user_balance(env: &Env, user: &Address, key_id: &String) {
-        let mut balance = Self::get_balance(env.clone(), user.clone());
-        
-        // Remove from all lists
-        balance.active_keys.retain(|k| k != key_id);
-        balance.expired_keys.retain(|k| k != key_id);
-        balance.frozen_keys.retain(|k| k != key_id);
-        
-        env.storage().persistent()
-            .set(&DataKey::UserBalance(user.clone()), &balance);
-    }
-    
-    fn move_key_to_frozen(env: &Env, user: &Address, key_id: &String) {
-        let mut balance = Self::get_balance(env.clone(), user.clone());
-        
-        // Remove from active/expired
-        balance.active_keys.retain(|k| k != key_id);
-        balance.expired_keys.retain(|k| k != key_id);
-        
-        // Add to frozen
-        balance.frozen_keys.push_back(key_id.clone());
-        
-        env.storage().persistent()
-            .set(&DataKey::UserBalance(user.clone()), &balance);
-    }
-}
 
-// Trait implementation for Vec retain method (helper)
-trait VecRetain<T> {
-    fn retain<F>(&mut self, f: F) where F: Fn(&T) -> bool;
-}
+    /// Deactivate an expired key (can be called by anyone)
+    pub fn deactivate_expired_key(env: Env, key_id: u64) {
+        let mut key: AccessKey = env.storage()
+            .persistent()
+            .get(&DataKey::AccessKey(key_id))
+            .unwrap_or_else(|| panic!("Access key not found"));
+        
+        let current_time = env.ledger().timestamp();
+        
+        if current_time > key.expires_at && key.is_active {
+            key.is_active = false;
+            env.storage().persistent().set(&DataKey::AccessKey(key_id), &key);
+            
+            // Decrease user balance
+            Self::decrement_balance(&env, &key.owner);
+        }
+    }
 
-impl<T: Clone + PartialEq> VecRetain<T> for Vec<T> {
-    fn retain<F>(&mut self, f: F) where F: Fn(&T) -> bool {
-        let mut new_vec = Vec::new(self.env());
-        for item in self.iter() {
-            if f(&item) {
-                new_vec.push_back(item);
+    /// Set content metadata
+    pub fn set_content_metadata(
+        env: Env,
+        content_id: String,
+        title: String,
+        description: String,
+        creator: Address,
+        price: i128,
+        max_keys: u32,
+    ) {
+        creator.require_auth();
+        
+        let metadata = ContentMetadata {
+            title,
+            description,
+            creator,
+            price,
+            max_keys,
+        };
+        
+        env.storage().persistent().set(&DataKey::ContentMeta(content_id), &metadata);
+    }
+
+    /// Get content metadata
+    pub fn get_content_metadata(env: Env, content_id: String) -> Option<ContentMetadata> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::ContentMeta(content_id))
+    }
+
+    // Internal helper functions
+    fn get_next_key_id(env: &Env) -> u64 {
+        let current_id: u64 = env.storage()
+            .instance()
+            .get(&KEY_COUNTER)
+            .unwrap_or(0);
+        
+        let next_id = current_id + 1;
+        env.storage().instance().set(&KEY_COUNTER, &next_id);
+        next_id
+    }
+
+    fn add_key_to_user(env: &Env, user: &Address, key_id: u64) {
+        let mut user_keys: Vec<u64> = env.storage()
+            .persistent()
+            .get(&DataKey::UserKeys(user.clone()))
+            .unwrap_or(Vec::new(env));
+        
+        user_keys.push_back(key_id);
+        env.storage().persistent().set(&DataKey::UserKeys(user.clone()), &user_keys);
+    }
+
+    fn remove_key_from_user(env: &Env, user: &Address, key_id: u64) {
+        let mut user_keys: Vec<u64> = env.storage()
+            .persistent()
+            .get(&DataKey::UserKeys(user.clone()))
+            .unwrap_or(Vec::new(env));
+        
+        // Find and remove the key
+        let mut new_keys = Vec::new(env);
+        for i in 0..user_keys.len() {
+            if user_keys.get(i).unwrap() != key_id {
+                new_keys.push_back(user_keys.get(i).unwrap());
             }
         }
-        *self = new_vec;
+        
+        env.storage().persistent().set(&DataKey::UserKeys(user.clone()), &new_keys);
+    }
+
+    fn increment_balance(env: &Env, address: &Address) {
+        let current_balance: i128 = env.storage()
+            .persistent()
+            .get(&DataKey::Balance(address.clone()))
+            .unwrap_or(0);
+        
+        env.storage().persistent().set(&DataKey::Balance(address.clone()), &(current_balance + 1));
+    }
+
+    fn decrement_balance(env: &Env, address: &Address) {
+        let current_balance: i128 = env.storage()
+            .persistent()
+            .get(&DataKey::Balance(address.clone()))
+            .unwrap_or(0);
+        
+        let new_balance = if current_balance > 0 { current_balance - 1 } else { 0 };
+        env.storage().persistent().set(&DataKey::Balance(address.clone()), &new_balance);
+    }
+
+    fn require_not_frozen(env: &Env, address: &Address) {
+        let is_frozen: bool = env.storage()
+            .persistent()
+            .get(&DataKey::FrozenAccount(address.clone()))
+            .unwrap_or(false);
+        
+        if is_frozen {
+            panic!("Account is frozen");
+        }
     }
 }

@@ -1,76 +1,113 @@
-/* 
-app/globals.css veya styles/globals.css
-*/
-@tailwind base;
-@tailwind components;
+@import "tailwindcss/preflight";
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 0.5rem;
+  html {
+    scroll-behavior: smooth;
   }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900;
+    @apply text-white;
+    @apply font-sans;
+    min-height: 100vh;
   }
 }
 
-/* Custom scrollbar for dark theme */
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700;
+    @apply text-white font-bold py-3 px-6 rounded-xl;
+    @apply transition-all duration-300 transform hover:scale-105;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700;
+    @apply text-white font-bold py-3 px-6 rounded-xl;
+    @apply transition-all duration-300 transform hover:scale-105;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .card {
+    @apply bg-black/20 backdrop-blur-lg rounded-xl p-6 border border-white/10;
+    @apply transition-all duration-300 hover:bg-black/30;
+  }
+  
+  .card-dark {
+    @apply bg-black/30 rounded-lg p-4 border border-white/5;
+    @apply transition-all duration-300 hover:bg-black/40;
+  }
+  
+  .input-field {
+    @apply bg-black/20 border border-white/10 rounded-lg px-4 py-3;
+    @apply text-white placeholder-gray-400;
+    @apply focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent;
+    @apply transition-all duration-200;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent;
+  }
+  
+  .loading-spinner {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@layer utilities {
+  .backdrop-glow {
+    backdrop-filter: blur(20px);
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .gradient-border {
+    background: linear-gradient(45deg, #00D4FF, #7B68EE) border-box;
+    border: 2px solid transparent;
+    background-clip: padding-box, border-box;
+  }
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-800;
+  background: rgba(0, 0, 0, 0.1);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-600 rounded-full;
+  background: linear-gradient(45deg, #00D4FF, #7B68EE);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-500;
+  background: linear-gradient(45deg, #00B8E6, #6A5ACD);
 }
 
-/* Gradient backgrounds */
-.gradient-bg {
-  background: linear-gradient(135deg, #1e293b 0%, #7c3aed 50%, #1e293b 100%);
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
-/* Animation for loading states */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+  .container {
+    @apply px-4;
   }
-  50% {
-    opacity: 0.5;
+  
+  .card {
+    @apply p-4;
   }
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

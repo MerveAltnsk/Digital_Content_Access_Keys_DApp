@@ -1,23 +1,23 @@
-# Cargo.toml
 [package]
-name = "digital-content-access-keys"
-version = "0.1.0"
+name = "digital-access-keys"
+version = "1.0.0"
 edition = "2021"
+rust-version = "1.74"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-soroban-sdk = "20.0.0"
+soroban-sdk = "21.0.0"
 
 [dev-dependencies]
-soroban-sdk = { version = "20.0.0", features = ["testutils"] }
+soroban-sdk = { version = "21.0.0", features = ["testutils"] }
 
 [features]
 testutils = ["soroban-sdk/testutils"]
 
 [[bin]]
-name = "digital-content-access-keys"
+name = "digital-access-keys"
 path = "src/main.rs"
 
 [profile.release]
@@ -33,6 +33,3 @@ lto = true
 [profile.release-with-logs]
 inherits = "release"
 debug-assertions = true
-
-
-

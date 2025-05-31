@@ -64,7 +64,6 @@ CardFooter.displayName = "CardFooter"
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
 
 // components/ui/button.tsx
-import * as React from "react"
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -106,8 +105,7 @@ Button.displayName = "Button"
 export { Button }
 
 // components/ui/input.tsx
-import * as React from "react"
-
+// components/ui/input.tsx
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {}
 
@@ -128,8 +126,6 @@ Input.displayName = "Input"
 export { Input }
 
 // components/ui/badge.tsx
-import * as React from "react"
-
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'secondary' | 'destructive' | 'outline'
