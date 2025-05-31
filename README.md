@@ -64,13 +64,12 @@ Unlock premium digital content with earned or purchased access keys.
 Admin can mint keys, transfer ownership, and freeze accounts if needed.
 
 ## 📸 Screenshots
-Coming soon! (Add /frontend/public/screenshots/*.png and reference them here)
+Coming soon!
 
 ## 📄 License
 This project is licensed under the MIT License.
 
  
-
 ## 🔗 Resources:
 
 🌐 Stellar Developer Docs
@@ -83,15 +82,4 @@ Note:
 To test the Soroban smart contract locally, ensure you compile it in the /contract folder before frontend integration.
 You can simulate the logic with mock users inside the test suite (/tests).
 
-yaml
-Kopyala
-Düzenle
 
----
-
-Let me know if you'd like to add:
-- deployment instructions to Futurenet / Soroban Previewnet  
-- `.env` example for wallet connections  
-- UI screenshots or demo link badges  
-
-I'm happy to extend it!
