@@ -1,4 +1,4 @@
-# 🌟 Ben Stellar – Habit Tracker & Digital Access Keys DApp
+# 🌟 Stellar – Habit Tracker & Digital Access Keys DApp
 
 This project is a motivational habit tracker and digital content access management system built with **Next.js**, **Rust**, and **Soroban smart contracts**.  
 It allows users to track daily habits, earn stars, and unlock exclusive content via blockchain-based access keys.
